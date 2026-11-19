@@ -1,106 +1,187 @@
-// v1 entry for make.fun "Sum up 19 November's world news in one
-// image" (competition news-image-20261119, Node 22, standard library only).
+// main.ts — "Sum up 19 November's world news in one image"
+// (make.fun competition news-image-20261119, entry: news-image-19-nov-2026)
 //
-// What this page is: a newspaper front page for Thursday 19 November
-// 2026 — 42 stories, 13 of them illustrated (3 large cards on top, then
-// 5 + 5 medium cards), 29 one-line briefs in two columns, a "THE DAY IN
-// NUMBERS" strip (22,133 people told to evacuate in Minamata, 50,000
-// evacuated ahead of Cyclone Akvan, the EU's 2-year methane-rule delay,
-// 750 fighters the UN must fly out of DR Congo), a thick segmented
-// region bar whose counts sum to 42, a beige land-mass world map with 13
-// numbered pins, and a date-check box naming the stories deliberately
-// left out because they first appeared before Thursday. The three
-// still-open stories of the day are carded only as "today" items — the
-// Trump–Xi–Putin trilateral meets today, the ICJ Rohingya verdict is due
-// today, Anthropic shares trade today — because at the research cut-off
-// (Thu 19 Nov 10:57 WIB) no outcome for any of them was known, and this
-// page never invents one. Cyclone Akvan is "bearing down", never "hits":
-// its landfall is Fri 20 Nov.
+// What the finished page shows, in one glance:
+//   Thursday 19 November 2026, as a newspaper front page — 42 stories
+//   in total, 13 of them drawn as illustrated cards (3 large across the
+//   top, then 5 + 5 medium cards), the other 29 as one-line briefs in
+//   two columns under a small world map with 13 numbered pins.
+//   A strip headed "THE DAY IN NUMBERS" carries four figures from the
+//   day: 22,133 people told to evacuate after the Kumamoto quake,
+//   50,000 evacuated ahead of Cyclone Akvan, a 2-year delay to the EU's
+//   methane rules, and 750 fighters the UN must fly out of DR Congo.
+//   A date-check box at the foot lists the big stories deliberately
+//   left out because they belong to an earlier day.
 //
-// The finished image is entry.png beside this file. This program does
-// not draw anything: it checks the image against the competition's
-// gate (PNG, 1024x1024, at most 1 MiB, complete IEND chunk) and copies
-// it byte for byte to /output/entry.png, verifying the copy by hash.
-// No network, no randomness: identical bytes on every run.
+// Honesty note — three stories were still open when the research
+// stopped at 10:57 WIB on 19 November, so no outcome is claimed for
+// them: the Trump–Xi–Putin trilateral in Shenzhen is carded only as
+// "meet today", the ICJ's Rohingya-genocide verdict only as "due
+// today", and Anthropic's first day of trading only as "trades today"
+// (its $83 price is labelled as Wednesday's pricing). Cyclone Akvan
+// is drawn as "bearing down" on Odisha because its landfall is not
+// until Friday 20 November.
 //
-// Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for
-// /output: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// This file does no drawing and needs no network. The picture already
+// exists next to it as entry.png; this program's only job is to check
+// that file is a sound, in-limits PNG and then copy it, byte for
+// byte, to the output location the harness reads.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The picture this entry ships, and the limits the bounty sets for it.
+const SOURCE_FILE = "entry.png";
+const OUTPUT_FILE = "entry.png";
+const MAX_FILE_BYTES = 1024 * 1024; // 1 MiB
+const EXPECTED_WIDTH = 1024;
+const EXPECTED_HEIGHT = 1024;
+
+// PNG's eight signature bytes: 137 80 78 71 13 10 26 10.
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+// Bit depths and colour types the PNG specification allows.
+const ALLOWED_BIT_DEPTHS = new Set([1, 2, 4, 8, 16]);
+const ALLOWED_COLOUR_TYPES = new Set([0, 2, 3, 4, 6]);
+
 function die(message) {
-  throw new Error(`news-image-20261119 v1: ${message}`);
+  console.error(`main.ts: ${message}`);
+  process.exit(1);
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
-const source = join(here, "entry.png");
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-const target = join(outDir, "entry.png");
-const ONE_MIB = 1024 * 1024;
-
-if (!existsSync(source)) die(`entry.png not found next to main.ts (${source})`);
-const bytes = readFileSync(source);
-
-// A PNG starts with the 8-byte signature 89 50 4E 47 0D 0A 1A 0A.
-const signature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-if (bytes.length < 8 || signature.some((b, i) => bytes[i] !== b)) {
-  die("entry.png is not a PNG (bad signature)");
-}
-// Width and height live in the IHDR chunk at bytes 16 and 20.
-const width = bytes.readUInt32BE(16);
-const height = bytes.readUInt32BE(20);
-if (width !== 1024 || height !== 1024) {
-  die(`image is ${width}x${height}, expected 1024x1024`);
-}
-// Revision: check the IHDR chunk itself, not just the size fields —
-// its length must be 13, its type must read IHDR, and the bit depth
-// and colour type must be values a PNG decoder accepts, so a file
-// with a plausible size but a corrupt header fails here.
-const ihdrLength = bytes.readUInt32BE(8);
-const ihdrType = bytes.subarray(12, 16).toString("latin1");
-const bitDepth = bytes[24];
-const colourType = bytes[25];
-if (ihdrLength !== 13 || ihdrType !== "IHDR") {
-  die(`first chunk is not IHDR (length ${ihdrLength}, type ${ihdrType})`);
-}
-if (![1, 2, 4, 8, 16].includes(bitDepth) || ![0, 2, 3, 4, 6].includes(colourType)) {
-  die(`unsupported IHDR: bit depth ${bitDepth}, colour type ${colourType}`);
-}
-if (bytes.length > ONE_MIB) {
-  die(`image is ${bytes.length} bytes, over the 1 MiB limit`);
-}
-// A complete PNG ends with an empty IEND chunk: length 0, the letters
-// IEND, then the chunk CRC.
-const iendLength = bytes.readUInt32BE(bytes.length - 12);
-const iendTag = bytes.subarray(bytes.length - 8, bytes.length - 4).toString("latin1");
-if (iendLength !== 0 || iendTag !== "IEND") {
-  die("image is truncated: no trailing IEND chunk");
+function sha256Hex(bytes) {
+  return createHash("sha256").update(bytes).digest("hex");
 }
 
-mkdirSync(outDir, { recursive: true });
-// Never copy the file onto itself: if MAKEFUN_OUTPUT_DIR ever points
-// at this repository directory, the copy would truncate the source.
-if (resolve(target) === resolve(source)) {
-  die(`refusing to copy entry.png onto itself (${target})`);
-}
-copyFileSync(source, target);
+// Walk the PNG chunk by chunk, starting after the 8-byte signature.
+// Every chunk is: 4-byte big-endian length, 4-byte type, length bytes
+// of data, 4-byte CRC. The first chunk must be IHDR; the last chunk
+// must be IEND and the file must end exactly there, so a truncated or
+// trailing-garbage file cannot slip through.
+function readPngHeader(bytes) {
+  if (bytes.length < PNG_SIGNATURE.length + 8 + 13 + 4 + 12) {
+    die(`entry.png is too short to be a PNG (${bytes.length} bytes)`);
+  }
+  if (!bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+    die("entry.png does not start with the PNG magic bytes");
+  }
 
-// Verify the copy itself, not just its size: hash the destination and
-// compare it with the source, so a partial or corrupted write fails
-// loudly instead of reaching the judge.
-const sourceHash = createHash("sha256").update(bytes).digest("hex");
-const copiedHash = createHash("sha256").update(readFileSync(target)).digest("hex");
-if (copiedHash !== sourceHash) {
-  die(`copy hash mismatch: ${copiedHash.slice(0, 12)}... != ${sourceHash.slice(0, 12)}...`);
+  let offset = PNG_SIGNATURE.length;
+  let sawIhdr = false;
+  let sawIend = false;
+  let header = null;
+
+  while (offset + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.toString("ascii", offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const chunkEnd = dataEnd + 4; // plus the CRC
+    if (chunkEnd > bytes.length) {
+      die(`PNG chunk ${type} at offset ${offset} runs past the end of the file`);
+    }
+
+    if (!sawIhdr) {
+      if (type !== "IHDR") die(`first PNG chunk is ${type}, expected IHDR`);
+      if (length !== 13) die(`IHDR chunk is ${length} bytes, expected 13`);
+      sawIhdr = true;
+      const width = bytes.readUInt32BE(dataStart);
+      const height = bytes.readUInt32BE(dataStart + 4);
+      const bitDepth = bytes[dataStart + 8];
+      const colourType = bytes[dataStart + 9];
+      const compression = bytes[dataStart + 10];
+      const filter = bytes[dataStart + 11];
+      const interlace = bytes[dataStart + 12];
+      if (width !== EXPECTED_WIDTH || height !== EXPECTED_HEIGHT) {
+        die(`entry.png is ${width}x${height}, expected ${EXPECTED_WIDTH}x${EXPECTED_HEIGHT}`);
+      }
+      if (!ALLOWED_BIT_DEPTHS.has(bitDepth)) die(`unsupported PNG bit depth ${bitDepth}`);
+      if (!ALLOWED_COLOUR_TYPES.has(colourType)) die(`unsupported PNG colour type ${colourType}`);
+      if (compression !== 0) die(`unsupported PNG compression method ${compression}`);
+      if (filter !== 0) die(`unsupported PNG filter method ${filter}`);
+      if (interlace !== 0 && interlace !== 1) die(`unsupported PNG interlace method ${interlace}`);
+      header = { width, height, bitDepth, colourType };
+    }
+
+    if (type === "IEND") {
+      if (length !== 0) die("IEND chunk must be empty");
+      if (chunkEnd !== bytes.length) die("bytes found after the IEND chunk");
+      sawIend = true;
+      break;
+    }
+
+    offset = chunkEnd;
+  }
+
+  if (!sawIhdr) die("no IHDR chunk found in entry.png");
+  if (!sawIend) die("no IEND chunk found in entry.png — the file may be truncated");
+  return header;
 }
-const written = statSync(target).size;
-if (written !== bytes.length) {
-  die(`copy size mismatch: wrote ${written} bytes, expected ${bytes.length}`);
+
+function loadAndValidate(sourcePath) {
+  if (!existsSync(sourcePath)) die(`cannot find ${sourcePath}`);
+  const bytes = readFileSync(sourcePath);
+  if (bytes.length > MAX_FILE_BYTES) {
+    die(`entry.png is ${bytes.length} bytes, over the 1 MiB limit (${MAX_FILE_BYTES})`);
+  }
+  const header = readPngHeader(bytes);
+  console.log(
+    `validated entry.png: ${header.width}x${header.height}, ` +
+      `bit depth ${header.bitDepth}, colour type ${header.colourType}, ` +
+      `${bytes.length} bytes`,
+  );
+  return bytes;
 }
-console.log(
-  `news-image-20261119 v1: front page, 42 stories (13 drawn + 29 briefs), ` +
-  `${width}x${height} PNG, ${bytes.length} bytes, sha256 ${sourceHash.slice(0, 12)}... -> ${target}`,
-);
+
+// Where the finished image goes. The harness reads /output/entry.png
+// by default; MAKEFUN_OUTPUT_DIR overrides the directory (used when
+// testing locally, so the test run never touches /output).
+function outputDirectory() {
+  const override = process.env.MAKEFUN_OUTPUT_DIR;
+  return override && override.trim() !== "" ? override : "/output";
+}
+
+function sameFile(first, second) {
+  if (resolve(first) === resolve(second)) return true;
+  if (existsSync(first) && existsSync(second)) {
+    try {
+      return realpathSync(first) === realpathSync(second);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function main() {
+  // The picture lives beside this file, wherever the repository was
+  // checked out, so resolve it from the script's own location.
+  const scriptDir = dirname(fileURLToPath(import.meta.url));
+  const sourcePath = join(scriptDir, SOURCE_FILE);
+  const sourceBytes = loadAndValidate(sourcePath);
+  const sourceHash = sha256Hex(sourceBytes);
+
+  const destinationDir = outputDirectory();
+  const destinationPath = join(destinationDir, OUTPUT_FILE);
+  if (sameFile(sourcePath, destinationPath)) {
+    die("refusing to copy entry.png onto itself — pick a different output directory");
+  }
+
+  mkdirSync(destinationDir, { recursive: true });
+  copyFileSync(sourcePath, destinationPath);
+
+  // Prove the copy is exact: hash what landed in the output
+  // directory and compare it with the hash of the source.
+  const copiedBytes = readFileSync(destinationPath);
+  const copiedHash = sha256Hex(copiedBytes);
+  if (copiedHash !== sourceHash) {
+    die(`copy mismatch: source sha256 ${sourceHash}, copy sha256 ${copiedHash}`);
+  }
+
+  console.log(`wrote ${destinationPath} (${copiedBytes.length} bytes)`);
+  console.log(`sha256: ${copiedHash}`);
+}
+
+main();
