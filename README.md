@@ -4,70 +4,48 @@
 [![rank](https://make.fun/badge/news-image-20261119/radeisv/news-image-19-nov-2026/rank.svg)](https://make.fun/bounty/news-image-20261119)
 [![reward](https://make.fun/badge/news-image-20261119/radeisv/news-image-19-nov-2026/reward.svg)](https://make.fun/bounty/news-image-20261119)
 
-One image that sums up the world news of Thursday 19 November 2026:
-33 stories on a single newspaper front page — 13 illustrated cards,
-20 one-line briefs, a six-figure numbers strip, a seven-segment region
-bar, a world map with numbered pins, and a DATE CHECK box.
+A program that writes one image summing up the world news of Thursday 19
+November 2026: **33 stories from the one day** — 13 illustrated cards (3
+leads + 10 features), 20 briefs, a hand-drawn world map with numbered pins,
+and a DATE CHECK box. Entry for the
+[news-image-20261119](https://make.fun/bounty/news-image-20261119)
+competition on [make.fun](https://make.fun).
 
-## What is on the page
+## The image
 
-The three biggest stories lead the page: the first-ever three-way
-summit of Trump, Xi and Putin in Shenzhen (APEC 2026); the World
-Court finding Myanmar guilty of genocide, 9–6; and the COP31 draft
-dropping fossil fuels and the $120bn adaptation-aid goal. Below them:
-Ukraine hitting the Crimea bridge again, Saudis shooting down Houthi
-missiles over Riyadh, Cyclone Akvan nearing India's coast, Korea's top
-court clearing ex-PM Han, Denmark backing the Arctic pact with the US
-109–0, Anthropic starting to trade on Nasdaq after its record $81bn
-IPO, GTA VI going on sale after 13 years, Colombia's national strike,
-a marathon champion banned for doping, and Australia's jobless rate
-hitting 4.9%.
+`entry.png` (1024×1024, 265,988 bytes) is drawn in advance by
+`build_image_v5.py` (Pillow, no network) and shipped here. The top three
+stories are the first US–China–Russia three-way summit in Shenzhen, the
+World Court's 9–6 genocide finding against Myanmar, and the COP31 draft
+that drops fossil fuels and the $120bn aid goal. The map is drawn from
+hand-authored lon/lat continent polygons projected equirectangularly, and
+every pin is verified inside a land polygon by a point-in-polygon test in
+the build script (pins that would collide are offset with a leader line to
+a dot at the true place, as in the reference).
 
-Every story on the page happened, or was first reported, on Thursday
-19 November 2026. The DATE CHECK box at the bottom says so, and lists
-what was deliberately left out as other days' news (18 Nov: the EU's
-€45bn Ukraine loan plan, Iran firing on Kuwait and Bahrain, Nvidia
-results, Jeffries named for US speaker, Carney on China ties; 20 Nov:
-COP31's scheduled close, Cyclone Akvan's landfall). Contested claims
-are attributed on the card, and every figure on the page comes from a
-named source.
+## The program
 
-## How it is built
+`main.ts` (Node 22, standard library only) delivers `entry.png` to the
+output directory the grader provides. It validates the PNG first (magic,
+IHDR 1024×1024 8-bit RGB, CRC of every chunk, IEND last), writes it, and
+reads it back to prove the delivered bytes are identical. It reads
+nothing else and reaches no network, so two runs are byte-identical.
 
-`entry.png` (1024×1024, 232 KB) is the finished front page, drawn in
-code with Pillow and the Liberation Serif / DejaVu Sans fonts — every
-picture and the map are original drawings, no photographs. `main.ts`
-is a Node program using only the standard library: it validates the
-image — PNG magic, a 13-byte IHDR, 1024×1024 dimensions, 8-bit
-truecolour RGB, every chunk's CRC, IEND last with nothing after it,
-at most 1 MiB — and writes exactly those validated bytes to the
-output directory, then reads the delivered file back and compares its
-SHA-256 with the validated bytes. Two runs write the same bytes.
-
-## Run it
+Run it outside the grader with `MAKEFUN_OUTPUT_DIR` standing in for
+`/output`:
 
 ```sh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-Outside the grader, `MAKEFUN_OUTPUT_DIR` stands in for `/output`.
-The program writes `entry.png` there and prints its size and SHA-256.
-
 ## Files
 
-- `entry.png` — the front page itself
-- `main.ts` — the entry program (Node, standard library only)
+- `entry.png` — the poster
+- `main.ts` — the entry program
 - `README.md` — this file
 - `LICENSE` — MIT
+- `.makefun/owner.json` — payout wallet
 
-## Sources
-
-Reuters, AP, AFP, BBC, Al Jazeera, UN News, Euronews, ABC, RNZ,
-Xinhua, Nature, IMD, Infobae, Kompas, Sedaily, SABC, Africanews,
-CBS. All drawings are original.
-
-## Entry
-
-This repository is an entry in the make.fun competition
-[Sum up 19 November's world news in one image](https://make.fun/bounty/news-image-20261119)
-(`news-image-20261119`).
+Status: built locally — uploaded to GitHub, not yet submitted to make.fun.
+Round 5 rebuild from zero (round 4 was rejected by the author for a
+sloppy map and rushed art).
